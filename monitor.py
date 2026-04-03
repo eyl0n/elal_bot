@@ -60,18 +60,53 @@ def fetch_api_data() -> dict:
     fires, so we never have to wait for the heavy React SPA to finish.
     """
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        log.info("[browser] Launching Chromium...")
+        browser = p.chromium.launch(
+            headless=True,
+            args=[
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+                "--disable-extensions",
+                "--disable-background-networking",
+            ],
+        )
         try:
             page = browser.new_page()
-            # Intercept the API response that the page makes after solving the challenge
+
+            # Log every request so we can see what the browser is actually reaching
+            def on_request(req):
+                log.info("[browser] >> %s %s", req.method, req.url[:120])
+
+            def on_response(resp):
+                log.info("[browser] << %s %s", resp.status, resp.url[:120])
+
+            def on_request_failed(req):
+                log.warning("[browser] FAILED %s  error=%s", req.url[:120], req.failure)
+
+            def on_console(msg):
+                if msg.type in ("error", "warning"):
+                    log.warning("[browser console %s] %s", msg.type, msg.text[:200])
+
+            page.on("request", on_request)
+            page.on("response", on_response)
+            page.on("requestfailed", on_request_failed)
+            page.on("console", on_console)
+
+            log.info("[browser] Navigating to %s ...", SEAT_PAGE_URL)
             with page.expect_response(
                 lambda r: API_PATH in r.url and r.status == 200,
-                timeout=120_000,
+                timeout=180_000,
             ) as response_info:
                 page.goto(SEAT_PAGE_URL, wait_until="domcontentloaded", timeout=120_000)
+                log.info("[browser] domcontentloaded fired. Waiting for API response...")
+
+            log.info("[browser] API response intercepted. Parsing JSON...")
             data = response_info.value.json()
+            log.info("[browser] JSON parsed OK.")
         finally:
             browser.close()
+            log.info("[browser] Browser closed.")
     return data
 
 

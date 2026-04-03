@@ -67,7 +67,7 @@ def fetch_api_data() -> dict:
         try:
             page = browser.new_page()
             log.info("[browser] Loading seat page to pass WAF...")
-            page.goto(SEAT_PAGE_URL, wait_until="domcontentloaded", timeout=60_000)
+            page.goto(SEAT_PAGE_URL, wait_until="networkidle", timeout=90_000)
             log.info("[browser] Fetching API data via JS...")
             data = page.evaluate(
                 f"""async () => {{

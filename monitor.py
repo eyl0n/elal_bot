@@ -16,11 +16,6 @@ TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
 API_URL = "https://www.elal.com/api/SeatAvailability/lang/heb/flights"
-API_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-    "Accept": "application/json, text/plain, */*",
-    "Referer": "https://www.elal.com/heb/seat-availability",
-}
 
 STATE_FILE = Path("state.json")
 CHECK_INTERVAL_SECONDS = 15 * 60  # 15 minutes
@@ -60,11 +55,7 @@ def save_state(state: dict) -> None:
 # El Al API
 # ---------------------------------------------------------------------------
 def fetch_api_data() -> dict:
-    resp = requests.get(API_URL, headers=API_HEADERS, timeout=30)
-    log.info("API response: HTTP %s, content-type: %s, body[:120]: %s",
-             resp.status_code,
-             resp.headers.get("content-type", "?"),
-             repr(resp.text[:120]))
+    resp = requests.get(API_URL, timeout=30)
     resp.raise_for_status()
     return resp.json()
 

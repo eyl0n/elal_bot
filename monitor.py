@@ -61,6 +61,10 @@ def save_state(state: dict) -> None:
 # ---------------------------------------------------------------------------
 def fetch_api_data() -> dict:
     resp = requests.get(API_URL, headers=API_HEADERS, timeout=30)
+    log.info("API response: HTTP %s, content-type: %s, body[:120]: %s",
+             resp.status_code,
+             resp.headers.get("content-type", "?"),
+             repr(resp.text[:120]))
     resp.raise_for_status()
     return resp.json()
 

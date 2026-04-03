@@ -1,0 +1,18 @@
+[Unit]
+Description=El Al Flight Monitor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/elal_bot
+EnvironmentFile=/home/ubuntu/elal_bot/.env
+ExecStart=/home/ubuntu/elal_bot/venv/bin/python monitor.py
+Restart=on-failure
+RestartSec=60
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

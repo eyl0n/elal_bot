@@ -6,7 +6,6 @@ from pathlib import Path
 
 import requests
 from dotenv import load_dotenv
-from playwright.sync_api import sync_playwright
 
 # ---------------------------------------------------------------------------
 # Config
@@ -16,8 +15,12 @@ load_dotenv()
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
-SEAT_PAGE_URL = "https://www.elal.com/heb/seat-availability"
-API_PATH = "/api/SeatAvailability/lang/heb/flights"
+API_URL = "https://www.elal.com/api/SeatAvailability/lang/heb/flights"
+API_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+    "Accept": "application/json, text/plain, */*",
+    "Referer": "https://www.elal.com/heb/seat-availability",
+}
 
 STATE_FILE = Path("state.json")
 CHECK_INTERVAL_SECONDS = 15 * 60  # 15 minutes
@@ -54,40 +57,12 @@ def save_state(state: dict) -> None:
 
 
 # ---------------------------------------------------------------------------
-# El Al API  (Playwright — bypasses Reblaze JS bot challenge)
+# El Al API
 # ---------------------------------------------------------------------------
 def fetch_api_data() -> dict:
-    """
-    Opens a headless browser to solve the Reblaze WAF JS challenge.
-    We intercept the actual SeatAvailability API response that the page itself
-    fires, so we never have to wait for the heavy React SPA to finish.
-    """
-    with sync_playwright() as p:
-        log.info("[browser] Launching Chromium...")
-        browser = p.chromium.launch(
-            headless=True,
-            args=[
-                "--no-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-gpu",
-                "--disable-extensions",
-                "--disable-background-networking",
-            ],
-        )
-        try:
-            page = browser.new_page()
-            log.info("[browser] Navigating to %s ...", SEAT_PAGE_URL)
-            with page.expect_response(
-                lambda r: API_PATH in r.url and r.status == 200,
-                timeout=180_000,
-            ) as response_info:
-                page.goto(SEAT_PAGE_URL, wait_until="domcontentloaded", timeout=120_000)
-            data = response_info.value.json()
-            log.info("[browser] API fetched successfully.")
-        finally:
-            browser.close()
-            log.info("[browser] Browser closed.")
-    return data
+    resp = requests.get(API_URL, headers=API_HEADERS, timeout=30)
+    resp.raise_for_status()
+    return resp.json()
 
 
 def parse_available_to_israel(data: dict) -> dict:

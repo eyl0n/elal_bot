@@ -10,7 +10,9 @@ WorkingDirectory=/home/eylonc11092001/elal_bot
 EnvironmentFile=/home/eylonc11092001/elal_bot/.env
 ExecStart=/home/eylonc11092001/elal_bot/venv/bin/python monitor.py
 Restart=on-failure
-RestartSec=60
+RestartSec=300
+StartLimitIntervalSec=600
+StartLimitBurst=3
 StandardOutput=journal
 StandardError=journal
 

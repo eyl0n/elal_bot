@@ -6,7 +6,6 @@ from pathlib import Path
 
 import requests
 from dotenv import load_dotenv
-from playwright.sync_api import sync_playwright
 
 # ---------------------------------------------------------------------------
 # Config
@@ -17,7 +16,11 @@ TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
 API_URL = "https://www.elal.com/api/SeatAvailability/lang/heb/flights"
-SEAT_PAGE_URL = "https://www.elal.com/heb/seat-availability"
+API_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+    "Accept": "application/json, text/plain, */*",
+    "Referer": "https://www.elal.com/heb/seat-availability",
+}
 
 STATE_FILE = Path("state.json")
 CHECK_INTERVAL_SECONDS = 15 * 60  # 15 minutes
@@ -57,37 +60,9 @@ def save_state(state: dict) -> None:
 # El Al API
 # ---------------------------------------------------------------------------
 def fetch_api_data() -> dict:
-    """
-    Uses Playwright to load the El Al seat page (which passes Reblaze WAF),
-    and captures the API response that the page naturally makes during load.
-    """
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        try:
-            page = browser.new_page()
-            api_data: dict = {}
-
-            def on_response(response):
-                if "SeatAvailability" in response.url:
-                    log.info(f"[browser] Intercepted API call → HTTP {response.status} from {response.url}")
-                    if response.status == 200:
-                        try:
-                            api_data["result"] = response.json()
-                        except Exception as exc:
-                            log.warning(f"[browser] Could not parse API response body: {exc}")
-
-            page.on("response", on_response)
-            log.info("[browser] Loading seat page...")
-            nav = page.goto(SEAT_PAGE_URL, wait_until="networkidle", timeout=120_000)
-            log.info(f"[browser] Page HTTP status: {nav.status if nav else 'unknown'}")
-
-            if api_data.get("result"):
-                log.info("[browser] Successfully captured API data from page load.")
-                return api_data["result"]
-
-            raise Exception("Page did not call the SeatAvailability API — cannot obtain data")
-        finally:
-            browser.close()
+    resp = requests.get(API_URL, headers=API_HEADERS, timeout=30)
+    resp.raise_for_status()
+    return resp.json()
 
 
 def parse_available_to_israel(data: dict) -> dict:

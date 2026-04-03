@@ -6,6 +6,7 @@ from pathlib import Path
 
 import requests
 from dotenv import load_dotenv
+from playwright.sync_api import sync_playwright
 
 # ---------------------------------------------------------------------------
 # Config
@@ -17,16 +18,6 @@ TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
 API_URL = "https://www.elal.com/api/SeatAvailability/lang/heb/flights"
 SEAT_PAGE_URL = "https://www.elal.com/heb/seat-availability"
-API_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-    "Accept": "application/json, text/plain, */*",
-    "Accept-Language": "he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Referer": "https://www.elal.com/heb/seat-availability",
-    "sec-fetch-site": "same-origin",
-    "sec-fetch-mode": "cors",
-    "sec-fetch-dest": "empty",
-}
 
 STATE_FILE = Path("state.json")
 CHECK_INTERVAL_SECONDS = 15 * 60  # 15 minutes
@@ -66,13 +57,30 @@ def save_state(state: dict) -> None:
 # El Al API
 # ---------------------------------------------------------------------------
 def fetch_api_data() -> dict:
-    session = requests.Session()
-    # Visit the page first to pick up any session cookies Reblaze expects
-    page_headers = {**API_HEADERS, "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"}
-    session.get(SEAT_PAGE_URL, headers=page_headers, timeout=30)
-    resp = session.get(API_URL, headers=API_HEADERS, timeout=30)
-    resp.raise_for_status()
-    return resp.json()
+    """
+    Uses a lightweight Playwright browser visit to pass the Reblaze WAF,
+    then calls the API via page.evaluate() (a JS fetch from inside the page).
+    This is much faster than waiting for the browser's own network request.
+    """
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        try:
+            page = browser.new_page()
+            log.info("[browser] Loading seat page to pass WAF...")
+            page.goto(SEAT_PAGE_URL, wait_until="domcontentloaded", timeout=60_000)
+            log.info("[browser] Fetching API data via JS...")
+            data = page.evaluate(
+                f"""async () => {{
+                    const r = await fetch("{API_URL}", {{
+                        headers: {{ "Accept": "application/json, text/plain, */*" }}
+                    }});
+                    if (!r.ok) throw new Error(`HTTP ${{r.status}}`);
+                    return r.json();
+                }}"""
+            )
+            return data
+        finally:
+            browser.close()
 
 
 def parse_available_to_israel(data: dict) -> dict:

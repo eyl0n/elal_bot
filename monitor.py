@@ -58,27 +58,34 @@ def save_state(state: dict) -> None:
 # ---------------------------------------------------------------------------
 def fetch_api_data() -> dict:
     """
-    Uses a lightweight Playwright browser visit to pass the Reblaze WAF,
-    then calls the API via page.evaluate() (a JS fetch from inside the page).
-    This is much faster than waiting for the browser's own network request.
+    Uses Playwright to load the El Al seat page (which passes Reblaze WAF),
+    and captures the API response that the page naturally makes during load.
     """
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         try:
             page = browser.new_page()
-            log.info("[browser] Loading seat page to pass WAF...")
-            page.goto(SEAT_PAGE_URL, wait_until="networkidle", timeout=90_000)
-            log.info("[browser] Fetching API data via JS...")
-            data = page.evaluate(
-                f"""async () => {{
-                    const r = await fetch("{API_URL}", {{
-                        headers: {{ "Accept": "application/json, text/plain, */*" }}
-                    }});
-                    if (!r.ok) throw new Error(`HTTP ${{r.status}}`);
-                    return r.json();
-                }}"""
-            )
-            return data
+            api_data: dict = {}
+
+            def on_response(response):
+                if "SeatAvailability" in response.url:
+                    log.info(f"[browser] Intercepted API call → HTTP {response.status} from {response.url}")
+                    if response.status == 200:
+                        try:
+                            api_data["result"] = response.json()
+                        except Exception as exc:
+                            log.warning(f"[browser] Could not parse API response body: {exc}")
+
+            page.on("response", on_response)
+            log.info("[browser] Loading seat page...")
+            nav = page.goto(SEAT_PAGE_URL, wait_until="networkidle", timeout=120_000)
+            log.info(f"[browser] Page HTTP status: {nav.status if nav else 'unknown'}")
+
+            if api_data.get("result"):
+                log.info("[browser] Successfully captured API data from page load.")
+                return api_data["result"]
+
+            raise Exception("Page did not call the SeatAvailability API — cannot obtain data")
         finally:
             browser.close()
 

@@ -5,10 +5,10 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=ubuntu
-WorkingDirectory=/home/ubuntu/elal_bot
-EnvironmentFile=/home/ubuntu/elal_bot/.env
-ExecStart=/home/ubuntu/elal_bot/venv/bin/python monitor.py
+User=eylonc11092001
+WorkingDirectory=/home/eylonc11092001/elal_bot
+EnvironmentFile=/home/eylonc11092001/elal_bot/.env
+ExecStart=/home/eylonc11092001/elal_bot/venv/bin/python monitor.py
 Restart=on-failure
 RestartSec=60
 StandardOutput=journal

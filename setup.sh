@@ -44,8 +44,11 @@ fi
 # ---- systemd service ----
 echo "==> Installing systemd service..."
 
-# Patch the service file to point to this repo dir (in case it was cloned elsewhere)
-sed "s|/home/ubuntu/elal_bot|$REPO_DIR|g" "$REPO_DIR/elal-monitor.service" \
+# Patch the service file to point to this repo dir and current user
+CURRENT_USER="$(whoami)"
+sed -e "s|/home/ubuntu/elal_bot|$REPO_DIR|g" \
+    -e "s|User=ubuntu|User=$CURRENT_USER|g" \
+    "$REPO_DIR/elal-monitor.service" \
     | sudo tee "/etc/systemd/system/$SERVICE_NAME.service" > /dev/null
 
 sudo systemctl daemon-reload

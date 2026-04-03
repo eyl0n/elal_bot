@@ -16,10 +16,16 @@ TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
 API_URL = "https://www.elal.com/api/SeatAvailability/lang/heb/flights"
+SEAT_PAGE_URL = "https://www.elal.com/heb/seat-availability"
 API_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
     "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Accept-Encoding": "gzip, deflate, br",
     "Referer": "https://www.elal.com/heb/seat-availability",
+    "sec-fetch-site": "same-origin",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-dest": "empty",
 }
 
 STATE_FILE = Path("state.json")
@@ -60,7 +66,11 @@ def save_state(state: dict) -> None:
 # El Al API
 # ---------------------------------------------------------------------------
 def fetch_api_data() -> dict:
-    resp = requests.get(API_URL, headers=API_HEADERS, timeout=30)
+    session = requests.Session()
+    # Visit the page first to pick up any session cookies Reblaze expects
+    page_headers = {**API_HEADERS, "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"}
+    session.get(SEAT_PAGE_URL, headers=page_headers, timeout=30)
+    resp = session.get(API_URL, headers=API_HEADERS, timeout=30)
     resp.raise_for_status()
     return resp.json()
 

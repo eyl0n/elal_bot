@@ -114,7 +114,7 @@ def format_alert(new_flights: list[dict]) -> str:
         to_label = f"{f['to']} {f['cityTo']}".strip() if f.get('cityTo') else f['to']
         lines.append(
             f"🗓 <b>{f['date']}</b>   {f['flightNumber']}\n"
-            f"   {from_label} → {to_label}\n🕐 {f['depTime']}\n"
+            f"   {from_label} → {to_label}\n   🕐 {f['depTime']}\n"
             f"   💺 {seat_label}"
         )
     lines.append("\n🔗 https://www.elal.com/heb/seat-availability")

@@ -84,6 +84,8 @@ def parse_available_to_israel(data: dict) -> dict:
                     "seatType": seat_type,
                     "from": flight.get("routeFrom", "?"),
                     "to": flight.get("routeTo", "TLV"),
+                    "cityFrom": (flight.get("originDetails") or {}).get("cityName", ""),
+                    "cityTo": (flight.get("destinationDetails") or {}).get("cityName", ""),
                     "depTime": flight.get("segmentDepTime", "?"),
                 }
     return available
@@ -108,9 +110,11 @@ def format_alert(new_flights: list[dict]) -> str:
         seat_label = f"{f['seatCount']} seat(s)"
         if f["seatType"] and f["seatType"] not in ("", "N/A"):
             seat_label += f" [{f['seatType']}]"
+        from_label = f"{f['from']} {f['cityFrom']}".strip() if f.get('cityFrom') else f['from']
+        to_label = f"{f['to']} {f['cityTo']}".strip() if f.get('cityTo') else f['to']
         lines.append(
             f"🗓 <b>{f['date']}</b>   {f['flightNumber']}\n"
-            f"   {f['from']} → {f['to']}   🕐 {f['depTime']}\n"
+            f"   {from_label} → {to_label}   🕐 {f['depTime']}\n"
             f"   💺 {seat_label}"
         )
     lines.append("\n🔗 https://www.elal.com/heb/seat-availability")

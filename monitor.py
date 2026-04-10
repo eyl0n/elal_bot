@@ -94,14 +94,34 @@ def parse_available_to_israel(data: dict) -> dict:
 # ---------------------------------------------------------------------------
 # Telegram
 # ---------------------------------------------------------------------------
+def _split_message(text: str, limit: int = 4000) -> list:
+    if len(text) <= limit:
+        return [text]
+    parts = text.split("\n\n")
+    chunks = []
+    current = ""
+    for part in parts:
+        addition = ("\n\n" + part) if current else part
+        if len(current) + len(addition) > limit:
+            if current:
+                chunks.append(current)
+            current = part
+        else:
+            current += addition
+    if current:
+        chunks.append(current)
+    return chunks
+
+
 def send_telegram(text: str) -> None:
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    resp = requests.post(
-        url,
-        json={"chat_id": TELEGRAM_CHAT_ID, "text": text, "parse_mode": "HTML"},
-        timeout=15,
-    )
-    resp.raise_for_status()
+    for chunk in _split_message(text):
+        resp = requests.post(
+            url,
+            json={"chat_id": TELEGRAM_CHAT_ID, "text": chunk, "parse_mode": "HTML"},
+            timeout=15,
+        )
+        resp.raise_for_status()
 
 
 def format_alert(new_flights: list[dict]) -> str:
